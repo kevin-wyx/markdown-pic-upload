@@ -33,7 +33,6 @@ class ServiceProvider(object):
 
         self.file_field = 'file'
         self.get_token()
-        self.last_token_ts = time.time()
 
     def is_token_expired(self):
         return time.time() - self.last_token_ts > self.token_expire
@@ -59,6 +58,7 @@ class ServiceProvider(object):
         sign = self.get_sign(policy_encoded)
 
         self.token = '%s:%s:%s' % (self.access_key, sign, policy_encoded)
+        self.last_token_ts = time.time()
 
     def add_upload_form_fileds(self, file_name, custom_fileds=None):
         if self.file_name_prefix:
