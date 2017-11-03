@@ -29,8 +29,7 @@ class MultiPartForm(object):
     def __init__(self):
         self.form_fields = []
         self.files = []
-        self.boundary = '--testboundary098'
-        # self.boundary = mimetools.choose_boundary()
+        self.boundary = mimetools.choose_boundary()
         return
 
     def get_content_type(self):
