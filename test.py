@@ -2,6 +2,7 @@
 import sys
 
 from vonder import qiniu
+from markdown_parser import Parser
 
 
 def test_qiniu_upload():
@@ -12,5 +13,11 @@ def test_qiniu_upload():
     return ret
 
 
+def test_auto_parse():
+    file_path = sys.argv[1]
+    parser = Parser(file_path)
+    parser.upload_image_and_replace()
+
+
 if __name__ == '__main__':
-    test_qiniu_upload()
+    test_auto_parse()
