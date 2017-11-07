@@ -29,8 +29,6 @@ class ServiceProvider(object):
         self.domain_name = parser.get('qiniu', 'domain_name')
         self.file_name_prefix = file_name_prefix \
             or parser.get('qiniu', 'file_name_prefix')
-        self.file_name_prefix = None
-
         self.file_field = 'file'
         self.get_token()
 
