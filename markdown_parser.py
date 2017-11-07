@@ -60,7 +60,7 @@ class Parser(object):
                           start, end=None):
         size = end - start
         old_handler.seek(start)
-        content = ''
+        write_sth = False
         while True:
             if size > self.read_size:
                 read_size = self.read_size
@@ -68,11 +68,11 @@ class Parser(object):
                 read_size = size
             else:
                 break
-            content = old_handler.read(read_size)
-            new_handler.write(content)
+            new_handler.write(old_handler.read(read_size))
             new_handler.flush()
+            write_sth = True
             size -= self.read_size
-        return content
+        return write_sth
 
     def get_upload_prefix(self):
         print "file_path:", self.file_path
@@ -130,11 +130,10 @@ class Parser(object):
                     seek_start = end
                 while True:
                     seek_end = seek_start + self.read_size
-                    content = self.write_to_new_file(
-                        file, new_file, seek_start, seek_end)
-                    seek_start = seek_end
-                    if not content:
+                    if not self.write_to_new_file(
+                       file, new_file, seek_start, seek_end):
                         break
+                    seek_start = seek_end
 
         print "===>All Done!"
         print "===>Saved as", new_file_path
