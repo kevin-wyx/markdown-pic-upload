@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-from configparser import SafeConfigParser
+from ConfigParser import SafeConfigParser
 import datetime
 import heapq
 import os
