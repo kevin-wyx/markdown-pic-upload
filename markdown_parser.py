@@ -19,6 +19,7 @@ class Parser(object):
         self.file_path = file_path.rstrip('/')
         self.file_dir = os.path.dirname(file_path)
         self.images = []
+        self.image_names = []
         self.read_size = 50000
         self.pattern1 =\
             re.compile(r"!\[.*\]\(([a-zA-Z0-9\-\_\.\/]+)(\s+(\"[^\"]*\")?)?\)")
@@ -85,6 +86,18 @@ class Parser(object):
         rand_str = util.get_random_str(string.digits + string.letters)
         return '%s-%s-%s' % (now, rand_str, file_name)
 
+    def rename_image(self, image_abs_path):
+        name = image_abs_path.rsplit('/')[-1]
+        while True:
+            if name in self.image_names:
+                rand_str = util.get_random_str(
+                    string.digits + string.letters)
+                name = '%s-%s' % (rand_str, name)
+            else:
+                break
+        self.image_names.append(name)
+        return name
+
     def upload_image_and_replace(self):
         print "===>Parsing markdown file"
         self.get_all_image_path()
@@ -104,7 +117,8 @@ class Parser(object):
                         continue
                     abs_path = self.get_absolute_path(image_path)
                     print "   ===>Uploading", abs_path
-                    ret_data = self.sp.upload(abs_path)
+                    new_name = util.url_safe_str(self.rename_image(abs_path))
+                    ret_data = self.sp.upload(abs_path, rename=new_name)
                     image_url = ret_data['download_url']
                     if type(image_url) is unicode:
                         image_url = image_url.encode('utf-8')

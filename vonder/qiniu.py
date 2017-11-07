@@ -106,9 +106,12 @@ class ServiceProvider(object):
         ret_data = rsp.read()
         return ret_data
 
-    def upload(self, file_path, mimetype=None):
+    def upload(self, file_path, rename=None, mimetype=None):
         self.upload_form = forms.MultiPartForm()
-        file_name = file_path.rsplit('/')[-1]
+        if rename:
+            file_name = rename
+        else:
+            file_name = file_path.rsplit('/')[-1]
         self.add_upload_form_fileds(file_name)
         with open(file_path, 'rb') as handler:
             self.upload_form.add_file(
