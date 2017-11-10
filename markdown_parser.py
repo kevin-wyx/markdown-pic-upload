@@ -24,28 +24,52 @@ class Parser(object):
         self.pattern1 =\
             re.compile(r"!\[.*\]\(([a-zA-Z0-9\-\_\.\/]+)(\s+(\"[^\"]*\")?)?\)")
         self.pattern2 = re.compile(r"<\s*img.*\s+src\s*=\s*([\'\"])(.+?)\1.*>")
+        self.broken_img_tag_search_len = 300
+        self.broken_img_tag_pattern =\
+            re.compile(r"!\[?.*\]?\(?[a-zA-Z0-9\-\_\.\/]*( +(\"[^\"]*\")?)?[^\)\s]$")  # noqa
+        self.finish_reading = False
         prefix = self.get_upload_prefix()
         self.sp = getattr(vonder, using_sp).ServiceProvider(prefix)
+
+    def read_passage(self, file_handler, last_position):
+        passage = file_handler.read(self.read_size)
+        if not passage:
+            self.finish_reading = True
+        suffix = passage[-1 * self.broken_img_tag_search_len:]
+        suffix_len = len(suffix)
+        suffix = suffix.rstrip()
+        match_borken = self.broken_img_tag_pattern.search(suffix)
+        current_position = file_handler.tell()
+        if match_borken:
+            broken_len = suffix_len - match_borken.start()
+            passage = passage[:-1 * broken_len]
+            current_position -= broken_len
+            file_handler.seek(current_position)
+        if last_position == current_position:
+            self.finish_reading = True
+        return passage, current_position
 
     def get_all_image_path(self):
         print "===>Getting all images"
         with open(self.file_path, 'r') as file_handler:
-            count = 0
+            position = 0
             while True:
-                passage = file_handler.read(self.read_size)
+                last_position = position
+                passage, position = self.read_passage(file_handler, position)
+                if self.finish_reading:
+                    break
+                if not passage:
+                    continue
                 for match in self.pattern1.finditer(passage):
                     image_path = match.group(1)
-                    start = match.start(1) + self.read_size * count
-                    end = match.end(1) + self.read_size * count
+                    start = match.start(1) + last_position
+                    end = match.end(1) + last_position
                     heapq.heappush(self.images, (start, end, image_path))
                 for match in self.pattern2.finditer(passage):
                     image_path = match.group(1)
-                    start = match.start(1) + self.read_size * count
-                    end = match.end(1) + self.read_size * count
+                    start = match.start(1) + last_position
+                    end = match.end(1) + last_position
                     heapq.heappush(self.images, (start, end, image_path))
-                if not passage:
-                    break
-                count += 1
 
     def is_url(self, path):
         return re.match(r'\w+\:\/\/[^\/].+', path)
