@@ -5,9 +5,9 @@ import heapq
 import os
 import re
 import string
-import util
 
 import vonder
+from tools import util
 
 config_parser = SafeConfigParser()
 config_parser.read('server.conf')
