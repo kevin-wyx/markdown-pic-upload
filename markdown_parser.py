@@ -68,10 +68,14 @@ class Parser(object):
                 read_size = size
             else:
                 break
-            new_handler.write(old_handler.read(read_size))
-            new_handler.flush()
-            write_sth = True
-            size -= self.read_size
+            content = old_handler.read(read_size)
+            if content:
+                new_handler.write(content)
+                new_handler.flush()
+                write_sth = True
+                size -= self.read_size
+            else:
+                break
         return write_sth
 
     def get_upload_prefix(self):
