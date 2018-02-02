@@ -5,6 +5,7 @@ import heapq
 import os
 import re
 import string
+import uuid
 
 import vonder
 from tools import util
@@ -12,6 +13,8 @@ from tools import util
 config_parser = SafeConfigParser()
 config_parser.read('server.conf')
 using_sp = config_parser.get('default', 'use')
+
+UPLOAD_PREFIX = """<!---\nmd-pic-upload-prefix: %(prefix)s\nprefix-create-time: %(time)s\n-->\n\n\n"""  # noqa
 
 
 class Parser(object):
@@ -28,8 +31,10 @@ class Parser(object):
         self.broken_img_tag_pattern =\
             re.compile(r"!\[?.*\]?\(?[a-zA-Z0-9\-\_\.\/]*( +(\"[^\"]*\")?)?[^\)\s]$")  # noqa
         self.finish_reading = False
-        prefix = self.get_upload_prefix()
-        self.sp = getattr(vonder, using_sp).ServiceProvider(prefix)
+        self.upload_prefix_pattern = \
+            re.compile(r'<!---.+md-pic-upload-prefix:\s*(\w+).*-->', re.DOTALL)
+        self.prefix = None
+        self.prefix_in_file = False
 
     def read_passage(self, file_handler, last_position):
         passage = file_handler.read(self.read_size)
@@ -60,6 +65,13 @@ class Parser(object):
                     break
                 if not passage:
                     continue
+
+                if not self.prefix_in_file:
+                    matched = self.upload_prefix_pattern.search(passage)
+                    if matched:
+                        self.prefix = matched.group(1)
+                        self.prefix_in_file = True
+
                 for match in self.pattern1.finditer(passage):
                     image_path = match.group(1)
                     start = match.start(1) + last_position
@@ -102,18 +114,6 @@ class Parser(object):
                 break
         return write_sth
 
-    def get_upload_prefix(self):
-        print "file_path:", self.file_path
-        if '/' in self.file_path:
-            file_name = self.file_path.rsplit('/')[-1]
-        else:
-            file_name = self.file_path
-        file_name = util.url_safe_str(file_name)
-        print "file_name:", file_name
-        now = datetime.datetime.now().strftime('%Y%m%d')
-        rand_str = util.get_random_str(string.digits + string.letters)
-        return '%s-%s-%s' % (now, rand_str, file_name)
-
     def rename_image(self, image_abs_path):
         name = image_abs_path.rsplit('/')[-1]
         while True:
@@ -129,11 +129,20 @@ class Parser(object):
     def upload_image_and_replace(self):
         print "===>Parsing markdown file"
         self.get_all_image_path()
+        if not self.prefix_in_file:
+            self.prefix = str(uuid.uuid4()).replace('-', '')
+        sp = getattr(vonder, using_sp).ServiceProvider(self.prefix)
         print "===>Started upload and replace images"
         now = datetime.datetime.now().strftime('%y%m%d%H%M%S')
         new_file_path = '%s.%s' % (self.file_path, now)
         with open(new_file_path, 'w') as new_file:
             with open(self.file_path, 'r') as file:
+                if not self.prefix_in_file:
+                    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                    prefix_comment = UPLOAD_PREFIX % \
+                        {'time': now, 'prefix': self.prefix}
+                    new_file.write(prefix_comment)
+
                 seek_start = 0
                 while True:
                     try:
@@ -146,7 +155,7 @@ class Parser(object):
                     abs_path = self.get_absolute_path(image_path)
                     print "   ===>Uploading", abs_path
                     new_name = util.url_safe_str(self.rename_image(abs_path))
-                    ret_data = self.sp.upload(abs_path, rename=new_name)
+                    ret_data = sp.upload(abs_path, rename=new_name)
                     image_url = ret_data['download_url']
                     if type(image_url) is unicode:
                         image_url = image_url.encode('utf-8')

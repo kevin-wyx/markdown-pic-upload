@@ -28,7 +28,7 @@ class ServiceProvider(object):
         self.bucket_name = parser.get('qiniu', 'bucket_name')
         self.domain_name = parser.get('qiniu', 'domain_name')
         self.file_name_prefix = file_name_prefix \
-            or parser.get('qiniu', 'file_name_prefix')
+            or parser.get('qiniu', 'file_name_prefix', 'markdown_img')
         self.file_field = 'file'
         self.get_token()
 
