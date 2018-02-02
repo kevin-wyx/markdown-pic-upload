@@ -104,6 +104,12 @@ class ServiceProvider(object):
         ret_data = rsp.read()
         return ret_data
 
+    def get_download_url(self, ret_data):
+        # replace % with it ascii code, % in "%25" means
+        # 25 is an ascii code
+        file_path = ret_data.get('key').replace('%', '%25')
+        return os.path.join(self.domain_name.rstrip('/'), file_path)
+
     def upload(self, file_path, rename=None, mimetype=None):
         self.upload_form = forms.MultiPartForm()
         if rename:
@@ -118,6 +124,5 @@ class ServiceProvider(object):
         body = str(self.upload_form)
         ret_data = self.make_request(self.upload_url, 'upload', data=body)
         data = json.loads(ret_data)
-        data['download_url'] = os.path.join(
-            self.domain_name.rstrip('/'), data.get('key'))
+        data['download_url'] = self.get_download_url(data)
         return data
