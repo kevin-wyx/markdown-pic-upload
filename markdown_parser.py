@@ -4,7 +4,9 @@ import datetime
 import heapq
 import os
 import re
+import shutil
 import string
+import tempfile
 import uuid
 
 import vonder
@@ -20,6 +22,7 @@ UPLOAD_PREFIX = """<!---\nmd-pic-upload-prefix: %(prefix)s\nprefix-create-time: 
 class Parser(object):
     def __init__(self, file_path):
         self.file_path = file_path.rstrip('/')
+        self.file_name = self.file_path.rsplit('/', 1)[-1]
         self.file_dir = os.path.dirname(file_path)
         self.images = []
         self.image_names = []
@@ -133,15 +136,17 @@ class Parser(object):
             self.prefix = str(uuid.uuid4()).replace('-', '')
         sp = getattr(vonder, using_sp).ServiceProvider(self.prefix)
         print "===>Started upload and replace images"
-        now = datetime.datetime.now().strftime('%y%m%d%H%M%S')
-        new_file_path = '%s.%s' % (self.file_path, now)
-        with open(new_file_path, 'w') as new_file:
+        backup_path = \
+            os.path.join(self.file_dir, '.%s.mpubackup' % self.file_name)
+        temp_fd, temp_path = tempfile.mkstemp()
+        try:
+            temp_file = os.fdopen(temp_fd, 'w')
             with open(self.file_path, 'r') as file:
                 if not self.prefix_in_file:
                     now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
                     prefix_comment = UPLOAD_PREFIX % \
                         {'time': now, 'prefix': self.prefix}
-                    new_file.write(prefix_comment)
+                    temp_file.write(prefix_comment)
 
                 seek_start = 0
                 while True:
@@ -162,15 +167,21 @@ class Parser(object):
                     print "   ===>Got", image_url
                     seek_end = start
                     self.write_to_new_file(
-                        file, new_file, seek_start, seek_end)
-                    new_file.write(image_url)
+                        file, temp_file, seek_start, seek_end)
+                    temp_file.write(image_url)
                     seek_start = end
                 while True:
                     seek_end = seek_start + self.read_size
                     if not self.write_to_new_file(
-                       file, new_file, seek_start, seek_end):
+                       file, temp_file, seek_start, seek_end):
                         break
                     seek_start = seek_end
+        except Exception as e:
+            raise e
+        finally:
+            temp_file.close()
+
+        shutil.copy(self.file_path, backup_path)
+        shutil.move(temp_path, self.file_path)
 
         print "===>All Done!"
-        print "===>Saved as", new_file_path
